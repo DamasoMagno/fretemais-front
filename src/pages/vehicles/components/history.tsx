@@ -6,12 +6,13 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
-import { Pencil, Plus, Search } from "lucide-react"
-import { Input } from "@/components/ui/input"
+import { Pencil, Plus } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { api } from "@/services/api";
 import { useQuery } from "@tanstack/react-query";
-import { useState } from "react";
+import { ChangeEvent, useState } from "react";
+import { Search } from "@/components/search";
+import { Vehicle } from "./vehicle";
 
 // Transporter interface
 interface Transporter {
@@ -20,17 +21,24 @@ interface Transporter {
   cnpj: string;
 }
 
-// Vehicle interface
 interface Vehicle {
   id: number;
-  vehicleName: string;
-  vehicleType: "CAR" | "TRUCK" | "VAN" | string; // Enum-like type with potential other values
+  plateNumber: string;
+  vehicleType: string;
   transporter: Transporter;
 }
 
 
+
 export function History() {
-  const [plateNumber, setPlateNumber] = useState("")
+  const [plateNumber, setPlateNumber] = useState("");
+
+  const [vehicleId, setVehicleId] = useState("");
+  const [openVehicle, setOpenVehicle] = useState(false);
+
+  function handleSetPlateNumber(event: ChangeEvent<HTMLInputElement>) {
+    setPlateNumber(event.target.value);
+  }
 
   const { data } = useQuery({
     queryKey: ["vehicles", plateNumber],
@@ -44,18 +52,25 @@ export function History() {
     }
   })
 
+  function handleEditVehicle(vehicleId: string) {
+    setVehicleId(vehicleId);
+    setOpenVehicle(true)
+  }
+
+  function handleClose() {
+    setOpenVehicle(false)
+    setVehicleId("")
+  }
+
   return (
     <div className="bg-white flex flex-col gap-2 pt-4 rounded-md max-w-[1102px] mx-auto w-full mt-12">
       <div className="flex justify-between items-center px-4">
-        <div className="flex items-center focus-within:ring-2 focus-within:ring-ring border border-input px-2 rounded-xl max-w-[300px]">
-          <Search color="#667085" size={16} />
-          <Input
-            className="text-[#667085] border-0 outline-0 focus-visible:ring-[0]"
-            placeholder="Buscar veículo"
-            onChange={e => setPlateNumber(e.target.value)}
-          />
-        </div>
-        <Button variant="outline" className="rounded-full flex justify-center items-center">
+        <Search onChange={handleSetPlateNumber} placeholder="Buscar veículo" />
+        <Button
+          variant="outline"
+          className="rounded-full flex justify-center items-center"
+          onClick={() => setOpenVehicle(true)}
+        >
           <Plus color="#000000" size={16} />
         </Button>
       </div>
@@ -63,7 +78,7 @@ export function History() {
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead className="text-[#667085] text-xs">Nome</TableHead>
+            <TableHead className="text-[#667085] text-xs">Número da placa</TableHead>
             <TableHead className="text-[#667085] text-xs">Tipo de veiculo</TableHead>
             <TableHead className="text-[#667085] text-xs">Transportadora/Embarcdora</TableHead>
             <TableHead className="text-[#667085] text-xs">Ações</TableHead>
@@ -72,17 +87,21 @@ export function History() {
         <TableBody>
           {data?.map(vehicle => (
             <TableRow key={vehicle.id}>
-              <TableCell className="text-[#101828] text-xs" >{vehicle.vehicleName}</TableCell>
+              <TableCell className="text-[#101828] text-xs" >{vehicle.plateNumber}</TableCell>
               <TableCell className="text-[#101828] text-xs">{vehicle.vehicleType}</TableCell>
               <TableCell className="text-[#101828] text-xs">{vehicle.transporter.name}</TableCell>
               <TableCell className="text-[#101828] text-xs">
-                <button>
+                <button onClick={() => handleEditVehicle(String(vehicle.id))}>
                   <Pencil size={14} color="#667085" />
                 </button>
               </TableCell>
             </TableRow>
           ))}
-
+          <Vehicle
+            onToggleVehicle={handleClose}
+            vehicleOpen={openVehicle}
+            vehicleId={vehicleId}
+          />
         </TableBody>
       </Table>
     </div>
