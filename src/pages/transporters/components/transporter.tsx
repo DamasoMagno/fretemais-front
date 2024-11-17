@@ -1,6 +1,6 @@
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { useForm } from "react-hook-form"
+import { useForm, Controller } from "react-hook-form"
 import InputMask from 'react-input-mask';
 import { z } from "zod"
 
@@ -56,6 +56,7 @@ export function Transporter({
   const {
     handleSubmit,
     register,
+    control,
     reset,
     formState: {
       isSubmitting
@@ -135,13 +136,19 @@ export function Transporter({
             </div>
             <div className="flex flex-col gap-2">
               <Label>Transportadora</Label>
-              <InputMask
-                mask="99.999.999/9999-99"
-                alwaysShowMask={false}
-                {...register("cnpj")} placeholder="CNPJ da transportadora"
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+              <Controller
+                name="cnpj"
+                control={control}
+                render={({ field }) => (
+                  <InputMask
+                    {...field}
+                    mask="99.999.999/9999-99"
+                    alwaysShowMask={false}
+                    placeholder="CNPJ da transportadora"
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                  />
+                )}
               />
-
             </div>
           </div>
           <div className="flex flex-col gap-2 mt-4">

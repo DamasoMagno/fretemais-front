@@ -4,7 +4,7 @@ import { Bell } from "phosphor-react";
 export function Header() {
   return (
     <header className="bg-[#FFFFFF] px-12">
-      <div className="flex justify-between items-center h-[78px] max-w-[]">
+      <div className="flex justify-between items-center h-[78px] max-w-[1200px] mx-auto">
         <h3 className="font-bold text-2xl text-[#33303E]">Fretes</h3>
 
         <div className="flex items-center gap-8">

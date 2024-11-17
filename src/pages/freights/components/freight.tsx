@@ -137,7 +137,7 @@ export function Freight({
     defaultValues: {
       freightDate: new Date(),
       driver_id: 0,
-      cargoType: undefined,
+      cargoType: "PERISHABL",
       status: "IN_ROUTE",
       transporter_id: 0,
       vehicleType: "VAN"
@@ -145,16 +145,23 @@ export function Freight({
   });
 
   useEffect(() => {
-    reset()
+    reset({
+      freightDate: new Date(),
+      driver_id: 0,
+      cargoType: "HAZARDOUS",
+      status: "IN_ROUTE",
+      transporter_id: 0,
+      vehicleType: "TRUCK",
+    });
 
     if (freight) {
       reset({
-        freightDate: new Date(freight?.freightDate),
+        freightDate: new Date(freight.freightDate),
         driver_id: freight.driver.id,
         cargoType: freight.cargoType,
-        status: freight?.status,
-        transporter_id: freight?.transporter?.id,
-        vehicleType: freight?.vehicleType
+        status: freight.status,
+        transporter_id: freight.transporter.id,
+        vehicleType: freight.vehicleType,
       });
     }
   }, [freight, reset]);
@@ -173,7 +180,6 @@ export function Freight({
 
   const { mutateAsync: createFreight } = useMutation({
     mutationFn: async (data: FreightInput) => {
-      console.log(data)
       await api.post(`/freight`, data)
     },
     onSuccess: () => {
@@ -276,76 +282,100 @@ export function Freight({
 
             <div className="flex flex-col gap-2">
               <Label htmlFor="transporter_id">Transportadora</Label>
-              <Select
-                defaultValue={freight?.transporter?.id ? String(freight?.transporter?.id) : ""}
-                onValueChange={(e) => setValue("transporter_id", parseInt(e))}
-              >
-                <SelectTrigger id="transporter_id">
-                  <SelectValue placeholder="Selecione a transportadora" />
-                </SelectTrigger>
-                <SelectContent>
-                  {transporters?.map((transport) => (
-                    <SelectItem value={String(transport.id)} key={transport.id}>
-                      {transport.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Controller
+                name="transporter_id"
+                control={control}
+                render={({ field }) => (
+                  <Select
+                    value={field.value?.toString()}
+                    onValueChange={(value) => field.onChange(value)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecionar o tipo" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {transporters?.map((transporter) => (
+                        <SelectItem value={String(transporter.id)} key={transporter.id}>
+                          {transporter.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              />
               {errors.transporter_id && <span className="text-red-500 text-xs">{errors.transporter_id.message}</span>}
             </div>
 
             <div className="flex flex-col gap-2">
-              <Label htmlFor="transporter_id">Motorista</Label>
-              <Select
-                defaultValue={freight?.driver?.id ? String(freight?.driver?.id) : ""}
-                onValueChange={(e) => setValue("driver_id", Number(e))}
-              >
-                <SelectTrigger id="driver_id">
-                  <SelectValue placeholder="Selecione o motorista" />
-                </SelectTrigger>
-                <SelectContent>
-                  {drivers?.map((transport) => (
-                    <SelectItem value={String(transport.id)} key={transport.id}>
-                      {transport.fullName}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {errors.driver_id && <span className="text-red-500 text-xs">{errors.driver_id.message}</span>}
+              <Label htmlFor="driver_id">Motorista</Label>
+              <Controller
+                name="driver_id"
+                control={control}
+                render={({ field }) => (
+                  <Select
+                    value={field.value?.toString()}
+                    onValueChange={(value) => field.onChange(value)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecionar o motorista" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {drivers?.map((driver) => (
+                        <SelectItem value={String(driver.id)} key={driver.id}>
+                          {driver.fullName}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
+              />
 
+              {errors.driver_id && <span className="text-red-500 text-xs">{errors.driver_id.message}</span>}
             </div>
 
             <div className="flex flex-col gap-2">
               <Label>Tipo de veículo</Label>
-              <Select
-                defaultValue={freight?.vehicleType}
-                onValueChange={e => setValue("vehicleType", e as VehicleType)}
-              >
-                <SelectTrigger >
-                  <SelectValue placeholder="Selecionar o tipo" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="VAN">Van</SelectItem>
-                  <SelectItem value="TRUCK">Caminhão</SelectItem>
-                </SelectContent>
-              </Select>
+              <Controller
+                name="vehicleType"
+                control={control}
+                render={({ field }) => (
+                  <Select
+                    value={field.value}
+                    onValueChange={(value) => field.onChange(value)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecionar o tipo" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="VAN">Van</SelectItem>
+                      <SelectItem value="TRUCK">Caminhão</SelectItem>
+                    </SelectContent>
+                  </Select>
+                )}
+              />
               {errors.vehicleType && <span className="text-red-500 text-xs">{errors.vehicleType.message}</span>}
             </div>
 
             <div className="flex flex-col gap-2">
               <Label>Tipo de carga</Label>
-              <Select
-                defaultValue={freight?.cargoType}
-                onValueChange={e => setValue("cargoType", e as CargoType)}
-              >
-                <SelectTrigger >
-                  <SelectValue placeholder="HAZARDOUS" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="HAZARDOUS">Perigoso</SelectItem>
-                  <SelectItem value="PERISHABL">Perecível</SelectItem>
-                </SelectContent>
-              </Select>
+              <Controller
+                name="cargoType"
+                control={control}
+                render={({ field }) => (
+                  <Select
+                    value={field.value}
+                    onValueChange={(value) => field.onChange(value)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecionar o tipo" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="HAZARDOUS">Perigoso</SelectItem>
+                      <SelectItem value="PERISHABL">Perecível</SelectItem>
+                    </SelectContent>
+                  </Select>
+                )}
+              />
               {errors.cargoType && <span className="text-red-500 text-xs">{errors.cargoType.message}</span>}
             </div>
           </div>
