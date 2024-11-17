@@ -1,6 +1,7 @@
 import logo from "@/assets/logo.png"
-import { Package, SignOut, SquaresFour, Truck, Users } from "phosphor-react"
-import { Link } from "react-router-dom"
+import { Settings } from "lucide-react"
+import { Package, Question, SignOut, SquaresFour, Truck, Users } from "phosphor-react"
+import { NavLink } from "react-router-dom"
 
 export function Sidebar() {
   return (
@@ -9,42 +10,55 @@ export function Sidebar() {
         <img src={logo} alt="logo frete mis" />
       </header>
 
-      <div className="flex flex-col p-4">
+      <div className="flex flex-col pl-4">
         <nav className="flex flex-col mt-8 gap-12">
-          <Link to="/" className="flex items-center gap-4 text-[#101828] text-sm font-medium">
+          <NavLink
+            to="/"
+            className={({ isActive }) =>
+              isActive ? "flex items-center gap-4 text-[#101828] text-sm font-medium border-r-[4px] border-[#FFBD00]" : "border-r-[4px] border-transparent hover:border-[#FFBD00] flex items-center gap-4 text-[#667085] text-sm font-medium"
+            }
+          >
             <SquaresFour size={19} color="#101828" />
             Dashboard
-          </Link>
-          <Link to="/freight" className="flex items-center gap-4 text-[#101828] text-sm font-medium">
+          </NavLink>
+          <NavLink to="/freight" className={({ isActive }) =>
+            isActive ? "flex items-center gap-4 text-[#101828] text-sm font-medium border-r-[4px] border-[#FFBD00]" : "border-r-[4px] border-transparent hover:border-[#FFBD00] flex items-center gap-4 text-[#667085] text-sm font-medium"
+          }>
             <Package size={19} color="#101828" />
             Fretes
-          </Link>
-          <Link to="/transporter" className="flex items-center gap-4 text-[#101828] text-sm font-medium">
+          </NavLink>
+          <NavLink to="/transporter" className={({ isActive }) =>
+            isActive ? "flex items-center gap-4 text-[#101828] text-sm font-medium border-r-[4px] border-[#FFBD00]" : "border-r-[4px] border-transparent hover:border-[#FFBD00] flex items-center gap-4 text-[#667085] text-sm font-medium"
+          }>
             <Truck size={19} color="#101828" />
-            Transportadores
-          </Link>
-          <Link to="/driver" className="flex items-center gap-4 text-[#101828] text-sm font-medium">
+            Transportadoras
+          </NavLink>
+          <NavLink to="/driver" className={({ isActive }) =>
+            isActive ? "flex items-center gap-4 text-[#101828] text-sm font-medium border-r-[4px] border-[#FFBD00]" : "border-r-[4px] border-transparent hover:border-[#FFBD00] flex items-center gap-4 text-[#667085] text-sm font-medium"
+          }>
             <Users size={19} color="#101828" />
             Motoristas
-          </Link>
-          <Link to="/vehicle" className="flex items-center gap-4 text-[#101828] text-sm font-medium">
+          </NavLink>
+          <NavLink to="/vehicle" className={({ isActive }) =>
+            isActive ? "flex items-center gap-4 text-[#101828] text-sm font-medium border-r-[4px] border-[#FFBD00]" : "border-r-[4px] border-transparent hover:border-[#FFBD00] flex items-center gap-4 text-[#667085] text-sm font-medium"
+          }>
             <Truck size={19} color="#101828" />
             Veiculos
-          </Link>
+          </NavLink>
         </nav>
 
         <div className="w-full bg-[#E1E0E7] h-[1px] mt-[79px] mb-[57px] rounded-full" />
 
         <nav className="flex flex-col mt-8 gap-12">
           <a href="" className="flex items-center gap-2 text-[#101828] text-sm font-medium">
-            <SignOut />
+            <Settings size={19} color="#101828" />
             Configurações
           </a>
           <a href="" className="flex items-center gap-2 text-[#101828] text-sm font-medium">
-            <SignOut />Ajuda
+            <Question size={19} color="#101828" />Ajuda
           </a>
           <a href="" className="flex items-center gap-2 text-[#101828] text-sm font-medium">
-            <SignOut />Sair
+            <SignOut size={19} color="#101828" />Sair
           </a>
         </nav>
       </div>

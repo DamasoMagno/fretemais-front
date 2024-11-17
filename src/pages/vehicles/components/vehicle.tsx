@@ -6,11 +6,9 @@ import {
   SheetClose,
   SheetContent,
   SheetDescription,
-  SheetFooter,
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet"
-import { X } from "phosphor-react"
 import { z } from "zod"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
@@ -18,26 +16,28 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
 import { api } from "@/services/api"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Loader2 } from "lucide-react"
+import { useEffect } from "react"
+import { toast } from "sonner"
 
 const vehicleSchema = z.object({
-  plateNumber: z.string(),
-  vehicleType: z.string(),
+  plateNumber: z.string().min(1, "A placa é obrigatória."),
+  vehicleType: z.string().min(1, "Selecione o tipo de veículo."),
   transporter_id: z.coerce.number(),
 })
 
 type VehicleInput = z.infer<typeof vehicleSchema>
 
 interface Transporter {
-  id: number;
-  name: string;
-  cnpj: string;
+  id: number
+  name: string
+  cnpj: string
 }
 
 interface Vehicle {
-  id: number;
-  plateNumber: string;
-  vehicleType: string;
-  transporter: Transporter;
+  id: number
+  plateNumber: string
+  vehicleType: string
+  transporter: Transporter
 }
 
 export function Vehicle({
@@ -51,6 +51,7 @@ export function Vehicle({
 }) {
   const client = useQueryClient()
 
+  // Queries
   const { data: vehicle } = useQuery({
     queryKey: ["vehicle", vehicleId],
     queryFn: async () => {
@@ -68,6 +69,7 @@ export function Vehicle({
     },
   })
 
+  // Form setup
   const {
     handleSubmit,
     register,
@@ -76,47 +78,62 @@ export function Vehicle({
     reset,
   } = useForm<VehicleInput>({
     resolver: zodResolver(vehicleSchema),
-    values: {
-      plateNumber: vehicle?.plateNumber || "",
-      vehicleType: vehicle?.vehicleType || "",
-      transporter_id: vehicle?.transporter.id || 0,
+    defaultValues: {
+      plateNumber: "",
+      vehicleType: "",
+      transporter_id: 0,
     },
   })
 
-  const { mutateAsync } = useMutation({
+  useEffect(() => {
+    reset({
+      plateNumber: "",
+      transporter_id: 0,
+      vehicleType: ""
+    })
+
+    if (vehicle) {
+      reset({
+        plateNumber: vehicle.plateNumber,
+        vehicleType: vehicle.vehicleType,
+        transporter_id: vehicle.transporter.id,
+      })
+    }
+  }, [vehicle, reset])
+
+  const { mutateAsync: updateVehicle } = useMutation({
     mutationFn: async (data: VehicleInput) => {
       await api.put(`/vehicle/${vehicleId}`, data)
     },
     onSuccess: () => {
       client.invalidateQueries({
-        queryKey: ["vehicles"],
+        queryKey: ["vehicles"]
       })
+      toast.success("Veículo atualizado com sucesso!")
+      onToggleVehicle()
     },
   })
 
-  const { mutateAsync: create } = useMutation({
+  const { mutateAsync: createVehicle } = useMutation({
     mutationFn: async (data: VehicleInput) => {
       await api.post(`/vehicle`, data)
     },
     onSuccess: () => {
       client.invalidateQueries({
-        queryKey: ["vehicles"],
+        queryKey: ["vehicles"]
       })
+      toast.success("Veículo cadastrado com sucesso!")
+      reset()
+      onToggleVehicle()
     },
   })
 
+  // Form submission
   const onSubmit = async (data: VehicleInput) => {
-    try {
-      if (vehicleId) {
-        await mutateAsync(data)
-      } else {
-        await create(data)
-        reset()
-        onToggleVehicle()
-      }
-      console.log("Vehicle submitted successfully!")
-    } catch (error) {
-      console.log(error)
+    if (vehicleId) {
+      await updateVehicle(data)
+    } else {
+      await createVehicle(data)
     }
   }
 
@@ -124,70 +141,66 @@ export function Vehicle({
     <Sheet onOpenChange={onToggleVehicle} open={vehicleOpen}>
       <SheetContent>
         <SheetHeader>
-          <SheetTitle>Editar veículo</SheetTitle>
+          <SheetTitle>{vehicleId ? "Editar veículo" : "Cadastrar veículo"}</SheetTitle>
           <SheetDescription></SheetDescription>
         </SheetHeader>
-        <form onSubmit={handleSubmit(onSubmit)}>
-          <div className="flex flex-col gap-4">
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="plateNumber">Número da placa</Label>
-              <Input
-                id="plateNumber"
-                placeholder="Número da placa"
-                {...register("plateNumber")}
-                value={vehicle?.plateNumber || ""}
-              />
-              {errors.plateNumber && <span>{errors.plateNumber.message}</span>}
-            </div>
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="vehicleType">Tipo de veículo</Label>
-              <Select
-                value={vehicle?.vehicleType || ""}
-                onValueChange={(e) => setValue("vehicleType", e)}
-              >
-                <SelectTrigger id="vehicleType">
-                  <SelectValue placeholder="Selecione o tipo de veículo" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="TRUCK">Caminhão</SelectItem>
-                  <SelectItem value="VAN">Van</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="transporter_id">Transportadora</Label>
-              <Select
-                value={vehicle?.transporter.id ? String(vehicle?.transporter.id) : ""}
-                onValueChange={(e) => setValue("transporter_id", parseInt(e))}
-              >
-                <SelectTrigger id="transporter_id">
-                  <SelectValue placeholder="Selecione a transportadora" />
-                </SelectTrigger>
-                <SelectContent>
-                  {transporters?.map((transport) => (
-                    <SelectItem value={String(transport.id)} key={transport.id}>
-                      {transport.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+          <div>
+            <Label htmlFor="plateNumber">Número da placa</Label>
+            <Input
+              id="plateNumber"
+              placeholder="Ex: ABC-1234"
+              {...register("plateNumber")}
+            />
+            {errors.plateNumber && <span className="text-red-500 text-sm">{errors.plateNumber.message}</span>}
           </div>
-          <Button type="submit" disabled={isSubmitting}>
-            {isSubmitting ? <Loader2 className="animate-spin" /> : "Cadastrar"}
-          </Button>
-          <SheetClose>
-            Cancelar
-          </SheetClose>
-        </form>
 
-        <SheetFooter>
-          <SheetClose asChild>
-            <button className="cursor-pointer">
-              <X color="#FFBD00" size={14} />
-            </button>
-          </SheetClose>
-        </SheetFooter>
+          <div>
+            <Label htmlFor="vehicleType">Tipo de veículo</Label>
+            <Select
+              value={vehicle?.vehicleType || ""}
+              onValueChange={(value) => setValue("vehicleType", value)}
+            >
+              <SelectTrigger id="vehicleType">
+                <SelectValue placeholder="Selecione o tipo de veículo" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="TRUCK">Caminhão</SelectItem>
+                <SelectItem value="VAN">Van</SelectItem>
+              </SelectContent>
+            </Select>
+            {errors.vehicleType && <span className="text-red-500 text-sm">{errors.vehicleType.message}</span>}
+          </div>
+
+          <div>
+            <Label htmlFor="transporter_id">Transportadora</Label>
+            <Select
+              value={String(vehicle?.transporter.id || "")}
+              onValueChange={(value) => setValue("transporter_id", parseInt(value))}
+            >
+              <SelectTrigger id="transporter_id">
+                <SelectValue placeholder="Selecione a transportadora" />
+              </SelectTrigger>
+              <SelectContent>
+                {transporters?.map((transporter) => (
+                  <SelectItem value={String(transporter.id)} key={transporter.id}>
+                    {transporter.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="flex flex-col gap-2 mt-4">
+            <Button className="bg-[#FFBD00]" type="submit" disabled={isSubmitting}>
+              {isSubmitting ? <Loader2 className="animate-spin" /> : vehicleId ? "Atualizar" : "Cadastrar"}
+            </Button>
+            <SheetClose asChild>
+              <Button variant="ghost">Cancelar</Button>
+            </SheetClose>
+          </div>
+
+        </form>
       </SheetContent>
     </Sheet>
   )

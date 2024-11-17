@@ -1,21 +1,38 @@
-import { useForm } from "react-hook-form"
-import { z } from "zod"
+import { useForm, Controller } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
+import { z } from "zod"
+
+import { api } from "@/services/api"
 
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import {
   Sheet,
   SheetClose,
   SheetContent,
+  SheetDescription,
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet"
-import { RadioGroup, RadioGroupItem } from "../../../components/ui/radio-group"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query"
-import { api } from "@/services/api"
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover"
+import { Calendar } from "@/components/ui/calendar"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
+} from "@/components/ui/select"
+import { CalendarIcon, Loader2 } from "lucide-react"
+import { cn } from "@/lib/utils"
+import { format } from "date-fns"
+import { useEffect } from "react"
 
 interface Driver {
   id: number;
@@ -30,10 +47,11 @@ interface Transporter {
 
 type VehicleType = 'TRUCK' | 'VAN';
 type CargoType = 'PERISHABL' | "HAZARDOUS";
+type Status = "IN_ROUTE" | "WAITING_FOR_BID" | "DELIVERED";
 
 interface Freight {
   id: number;
-  status: 'IN_ROUTE' | 'WAITING_FOR_BID' | 'DELIVERED';
+  status: Status;
   freightDate: string;
   cargoType: CargoType;
   totalCoast: number;
@@ -46,11 +64,10 @@ interface Freight {
 interface DriverFreight {
   id: number;
   freightNumber: string;
-  status: "IN_ROUTE" | "WAITING_FOR_BID" | "DELIVERED";
-  freightDate: string; // ISO date string
+  status: Status;
+  freightDate: string;
 }
 
-// Driver interface
 interface Driver {
   id: number;
   fullName: string;
@@ -59,27 +76,34 @@ interface Driver {
   freights: DriverFreight[];
 }
 
-type Status = "IN_ROUTE" | "WAITING_FOR_BID" | "DELIVERED"
-
 const freightSchema = z.object({
-  status: z.enum(["IN_ROUTE", "WAITING_FOR_BID", "DELIVERED"]),
-  freightDate: z.coerce.date(),
-  transporter_id: z.coerce.number(),
-  driver_id: z.coerce.number(),
-  vehicleType: z.enum(["TRUCK", "VAN"]),
-  cargoType: z.enum(["HAZARDOUS", "PERISHABL"]),
+  status: z.enum(["IN_ROUTE", "WAITING_FOR_BID", "DELIVERED"], {
+    errorMap: () => ({ message: "Status obrigatório" })
+  }),
+  freightDate: z.coerce.date({
+    errorMap: () => ({ message: "Data de entrega obrigatória" })
+  }),
+  transporter_id: z.coerce.number().min(1, { message: "Transportadora obrigatória" }),
+  driver_id: z.coerce.number().min(1, { message: "Motorista obrigatório" }),
+  vehicleType: z.enum(["TRUCK", "VAN"], {
+    errorMap: () => ({ message: "Categoria de veículo exigida" })
+  }),
+  cargoType: z.enum(["HAZARDOUS", "PERISHABL"], {
+    errorMap: () => ({ message: "Condição de carga exigida" })
+  }),
 })
+
 
 type FreightInput = z.infer<typeof freightSchema>
 
 export function Freight({
   freightId,
-  onToggleVehicle,
-  vehicleOpen,
+  toggleModalFreight,
+  modalFreightIsOpen,
 }: {
   freightId: string
-  onToggleVehicle: () => void
-  vehicleOpen: boolean
+  toggleModalFreight: () => void
+  modalFreightIsOpen: boolean
 }) {
   const client = useQueryClient()
 
@@ -101,24 +125,40 @@ export function Freight({
   })
 
   const { data: drivers } = useQuery({
-    queryKey: ["drivers-list"],
+    queryKey: ["drivers"],
     queryFn: async () => {
       const response = await api.get("/driver")
       return response.data as Driver[]
     },
   })
 
-  const { handleSubmit, register, setValue, reset } = useForm<FreightInput>({
+  const { handleSubmit, setValue, control, reset, formState: { errors, isSubmitting } } = useForm<FreightInput>({
     resolver: zodResolver(freightSchema),
-    values: {
-      freightDate: freight?.freightDate ? new Date(freight.freightDate) : new Date(), // Se freight.freightDate for uma string, converte para Date
-      driver_id: freight?.driver?.id || 0,
-      cargoType: freight?.cargoType || "PERISHABL",
-      status: freight?.status || "IN_ROUTE",
-      transporter_id: freight?.transporter?.id || 0,
-      vehicleType: freight?.vehicleType || "VAN"
+    defaultValues: {
+      freightDate: new Date(),
+      driver_id: 0,
+      cargoType: undefined,
+      status: "IN_ROUTE",
+      transporter_id: 0,
+      vehicleType: "VAN"
     }
   });
+
+  useEffect(() => {
+    reset()
+
+    if (freight) {
+      reset({
+        freightDate: new Date(freight?.freightDate),
+        driver_id: freight.driver.id,
+        cargoType: freight.cargoType,
+        status: freight?.status,
+        transporter_id: freight?.transporter?.id,
+        vehicleType: freight?.vehicleType
+      });
+    }
+  }, [freight, reset]);
+
 
   const { mutateAsync } = useMutation({
     mutationFn: async (data: FreightInput) => {
@@ -133,6 +173,7 @@ export function Freight({
 
   const { mutateAsync: createFreight } = useMutation({
     mutationFn: async (data: FreightInput) => {
+      console.log(data)
       await api.post(`/freight`, data)
     },
     onSuccess: () => {
@@ -148,34 +189,34 @@ export function Freight({
         await mutateAsync(data)
       } else {
         await createFreight(data)
-        reset()
-        onToggleVehicle()
       }
-      console.log("Vehicle submitted successfully!")
+
+      reset()
+      toggleModalFreight()
     } catch (error) {
       console.log(error)
     }
   }
 
-  console.log(drivers)
-
   return (
-    <Sheet onOpenChange={onToggleVehicle} open={vehicleOpen}>
+    <Sheet onOpenChange={toggleModalFreight} open={modalFreightIsOpen}>
       <SheetContent>
         <SheetHeader>
           <SheetTitle>Novo frete</SheetTitle>
+          <SheetDescription />
         </SheetHeader>
         <form onSubmit={handleSubmit(onSubmit)}>
           <span>Status do frete</span>
 
           <RadioGroup
             defaultValue={freight?.status}
-            className="flex items-center justify-between"
             onValueChange={event => setValue("status", event as Status)}
+            className="flex items-center justify-between"
           >
             <div className="flex items-center space-x-2">
               <RadioGroupItem value="IN_ROUTE" id="IN_ROUTE" />
               <Label htmlFor="IN_ROUTE">Em rota</Label>
+
             </div>
             <div className="flex items-center space-x-2">
               <RadioGroupItem value="WAITING_FOR_BID" id="WAITING_FOR_BID" />
@@ -190,7 +231,47 @@ export function Freight({
           <div className="flex flex-col gap-4 mt-8">
             <div className="flex flex-col gap-2">
               <Label className="text-[#475467]">Data do frete</Label>
-              <Input {...register("freightDate")} />
+              <Controller
+                name="freightDate"
+                control={control}
+                render={({ field }) => (
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant={"outline"}
+                        className={cn(
+                          "pl-3 text-left font-normal",
+                          !field.value && "text-muted-foreground"
+                        )}
+                      >
+                        {field.value ? (
+                          format(field.value, "yyyy-MM-dd") // Atualiza o texto ao mudar a data
+                        ) : (
+                          <span>Selecionar a data</span>
+                        )}
+                        <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={new Date(field.value)}
+                        onSelect={(date) => {
+                          if (date) {
+                            const formattedDate = format(date, "yyyy-MM-dd");
+                            field.onChange(formattedDate);
+                          }
+                        }}
+                        disabled={(date) =>
+                          date > new Date() || date < new Date("1900-01-01")
+                        }
+                        initialFocus
+                      />
+                    </PopoverContent>
+                  </Popover>
+                )}
+              />
+              {errors.freightDate && <span className="text-red-500 text-xs">{errors.freightDate.message}</span>}
             </div>
 
             <div className="flex flex-col gap-2">
@@ -210,6 +291,7 @@ export function Freight({
                   ))}
                 </SelectContent>
               </Select>
+              {errors.transporter_id && <span className="text-red-500 text-xs">{errors.transporter_id.message}</span>}
             </div>
 
             <div className="flex flex-col gap-2">
@@ -229,58 +311,48 @@ export function Freight({
                   ))}
                 </SelectContent>
               </Select>
+              {errors.driver_id && <span className="text-red-500 text-xs">{errors.driver_id.message}</span>}
+
             </div>
 
             <div className="flex flex-col gap-2">
               <Label>Tipo de veículo</Label>
               <Select
+                defaultValue={freight?.vehicleType}
                 onValueChange={e => setValue("vehicleType", e as VehicleType)}
               >
                 <SelectTrigger >
-                  <SelectValue placeholder="Theme" />
+                  <SelectValue placeholder="Selecionar o tipo" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="VAN">VAN</SelectItem>
-                  <SelectItem value="TRUC">TRUCK</SelectItem>
+                  <SelectItem value="VAN">Van</SelectItem>
+                  <SelectItem value="TRUCK">Caminhão</SelectItem>
                 </SelectContent>
               </Select>
+              {errors.vehicleType && <span className="text-red-500 text-xs">{errors.vehicleType.message}</span>}
             </div>
 
             <div className="flex flex-col gap-2">
               <Label>Tipo de carga</Label>
               <Select
+                defaultValue={freight?.cargoType}
                 onValueChange={e => setValue("cargoType", e as CargoType)}
               >
                 <SelectTrigger >
-                  <SelectValue placeholder="Theme" />
+                  <SelectValue placeholder="HAZARDOUS" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="HAZARDOUS">Light</SelectItem>
-                  <SelectItem value="PERISHABL">Dark</SelectItem>
+                  <SelectItem value="HAZARDOUS">Perigoso</SelectItem>
+                  <SelectItem value="PERISHABL">Perecível</SelectItem>
                 </SelectContent>
               </Select>
+              {errors.cargoType && <span className="text-red-500 text-xs">{errors.cargoType.message}</span>}
             </div>
-
-            {/* <div className="flex flex-col gap-2">
-              <Label>Tipo de pagamento</Label>
-              <Select
-                onValueChange={e => setValue("", e as any)}
-              >
-                <SelectTrigger >
-                  <SelectValue placeholder="Theme" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="light">Light</SelectItem>
-                  <SelectItem value="dark">Dark</SelectItem>
-                  <SelectItem value="system">System</SelectItem>
-                </SelectContent>
-              </Select>
-            </div> */}
           </div>
 
           <div className="flex flex-col gap-2 mt-4">
             <Button className="bg-[#FFBD00]" type="submit">
-              Cadastrar
+              {isSubmitting ? <Loader2 className="animate-spin" /> : freightId ? "Atualizar" : "Cadastrar"}
             </Button>
             <SheetClose asChild>
               <Button variant="ghost">
