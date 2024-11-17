@@ -5,7 +5,7 @@
 Para rodar o projeto é necessário ter:
 
 - [Node.js](https://nodejs.org/) (versão **21** ou superior)
-- [npm](https://www.npmjs.com/) ou [yarn](https://yarnpkg.com/)
+- [npm](https://www.npmjs.com/) 
 
 ---
 
